@@ -2,10 +2,10 @@
 name = "pdf_tools"
 version = "0.1.0"
 authors = ["Sebastian K <s3bk@protonmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 euclid = "0.22.6"
 log = "*"
-pdf = { version = "0.9.0", features = ["euclid"] }
+pdf = { version = "0.10.0", features = ["euclid"] }
 pdf_encoding = "0.4.0"

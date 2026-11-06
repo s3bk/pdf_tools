@@ -1,4 +1,8 @@
 extern crate pdf;
+
+pub mod merge;
+pub mod pages;
+
 use log::warn;
 use pdf::primitive::Name;
 
@@ -97,52 +101,59 @@ impl<'src, T: Resolve> FontCache<'src, T> {
     }
 
     fn populate(&mut self) {
+        let resolve = self.resolve;
         if let Ok(resources) = self.page.resources() {
             for (name, font) in resources.fonts.iter() {
-                if let Some(font) = font.as_ref() {
-                    if let Ok(font) = self.resolve.get(font) {
-                        self.add_font(name.clone(), font);
-                    }
+                match font.load(resolve) {
+                    Ok(font) => self.add_font(name.clone(), &font, resolve),
+                    Err(err) => warn!("ignoring unusable font {:?}: {}", name, err),
                 }
             }
 
             for (font, _) in resources.graphics_states.values().filter_map(|gs| gs.font) {
                 if let Ok(font) = self.resolve.get(font) {
                     if let Some(name) = &font.name {
-                        self.add_font(name.clone(), font);
+                        self.add_font(name.clone(), &font, resolve);
                     }
                 }
             }
         }
     }
 
-    fn add_font(&mut self, name: impl Into<Name>, font: RcRef<Font>) {
-        let decoder = if let Some(to_unicode) = font.to_unicode(self.resolve) {
-            let cmap = to_unicode.unwrap();
-            Decoder::Cmap(cmap)
-        } else if let Some(encoding) = font.encoding() {
-            let map = match encoding.base {
-                BaseEncoding::StandardEncoding => Some(&pdf_encoding::STANDARD),
-                BaseEncoding::SymbolEncoding => Some(&pdf_encoding::SYMBOL),
-                BaseEncoding::WinAnsiEncoding => Some(&pdf_encoding::WINANSI),
-                BaseEncoding::MacRomanEncoding => Some(&pdf_encoding::MACROMAN),
-                BaseEncoding::None => None,
-                ref e => {
-                    warn!("unsupported pdf encoding {:?}", e);
-                    return;
-                }
-            };
+    fn add_font(&mut self, name: impl Into<Name>, font: &Font, resolve: &'src T) {
+        let decoder = match font.to_unicode(resolve) {
+            Some(Ok(cmap)) => Decoder::Cmap(cmap),
+            Some(Err(err)) => {
+                warn!("ignoring font with a broken /ToUnicode map: {}", err);
+                return;
+            }
+            None => {
+                let encoding = match font.encoding() {
+                    Some(encoding) => encoding,
+                    None => return,
+                };
 
-            Decoder::Map(DifferenceForwardMap::new(
-                map,
-                encoding
-                    .differences
-                    .iter()
-                    .map(|(k, v)| (*k, v.to_string()))
-                    .collect(),
-            ))
-        } else {
-            return;
+                let map = match encoding.base {
+                    BaseEncoding::StandardEncoding => Some(&pdf_encoding::STANDARD),
+                    BaseEncoding::SymbolEncoding => Some(&pdf_encoding::SYMBOL),
+                    BaseEncoding::WinAnsiEncoding => Some(&pdf_encoding::WINANSI),
+                    BaseEncoding::MacRomanEncoding => Some(&pdf_encoding::MACROMAN),
+                    BaseEncoding::None => None,
+                    ref e => {
+                        warn!("unsupported pdf encoding {:?}", e);
+                        return;
+                    }
+                };
+
+                Decoder::Map(DifferenceForwardMap::new(
+                    map,
+                    encoding
+                        .differences
+                        .iter()
+                        .map(|(k, v)| (*k, v.to_string()))
+                        .collect(),
+                ))
+            }
         };
 
         self.fonts
