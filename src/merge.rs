@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use pdf::build::{CatalogBuilder, Importer, PageBuilder, PdfBuilder};
 use pdf::error::PdfError;
-use pdf::file::FileOptions;
+use pdf::file::{FileOptions, OpenMode};
 use pdf::object::Updater;
 
 use crate::pages;
@@ -81,6 +81,8 @@ pub fn merge(sources: &[Source], output: &Path, verify: bool) -> Result<usize, E
 
     for source in sources {
         let file = FileOptions::cached()
+            // merge inputs can be large; map rather than read when that pays
+            .open_mode(OpenMode::Auto)
             .open(&source.path)
             .map_err(|err| Error::Io {
                 path: source.path.clone(),
