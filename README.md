@@ -67,6 +67,30 @@ object nr 0.`
 anything else, which keeps every real object at 1 and above. The clean fix is
 in the pdf crate: `entries.resize(num_objects.max(1) as usize, XRef::Invalid);`
 
+## What the output contains
+
+`pdf-cut` copies *pages*, not documents: a page is rebuilt from its content
+stream and the resources its operators actually select.
+`PageBuilder::clone_page` walks the operators and pulls in the fonts, colour
+spaces and XObjects they name, so
+
+* an object used by several selected pages is copied once (the `Importer`
+  keys its copies by the source reference), and
+* an object nothing selected uses — a resource a page lists but never selects,
+  the content of a page that was not taken — is not written at all.
+
+`tests/dedup.rs` pins both down: it merges two hand-built pages that share one
+font and checks the font appears once, that a font only an unselected page uses
+does not appear, and that a font listed in `/Resources` but never selected by
+an operator does not appear either.
+
+## Building against a local pdf checkout
+
+`Cargo.toml` carries a `[patch.crates-io]` that points `pdf` at
+`/home/hematite/task-clones/pdf/pdf`, the local checkout with the fixes this
+tool was developed against. Drop that section when the fixes are upstream and
+released; nothing else depends on it.
+
 ## pdf 0.9 vs 0.10
 
 This crate now builds against `pdf` 0.10, where `/Font` entries of a page's

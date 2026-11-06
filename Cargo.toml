@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["Sebastian K <s3bk@protonmail.com>"]
 edition = "2021"
 
+# The fixes this tool relies on (and the ones it found) live in the local
+# checkout of the crate, not in the released 0.10.0. Drop this section when
+# they are upstream and released.
+[patch.crates-io]
+pdf = { path = "/home/hematite/task-clones/pdf/pdf" }
+
 [dependencies]
 euclid = "0.22.6"
 log = "*"
