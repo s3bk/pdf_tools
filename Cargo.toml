@@ -13,5 +13,5 @@ pdf = { path = "/home/hematite/task-clones/pdf/pdf" }
 [dependencies]
 euclid = "0.22.6"
 log = "*"
-pdf = { version = "0.10.0", features = ["euclid"] }
+pdf = { version = "0.10.0", features = ["euclid", "mmap"] }
 pdf_encoding = "0.4.0"
